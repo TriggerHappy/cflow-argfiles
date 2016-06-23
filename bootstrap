@@ -398,7 +398,7 @@ case ${GNULIB_SRCDIR--} in
     trap cleanup_gnulib 1 2 13 15
 
     git clone --help|grep depth > /dev/null && shallow='--depth 2' || shallow=
-    git clone $shallow git://git.sv.gnu.org/gnulib ||
+    git clone $shallow http://git.sv.gnu.org/srv/git/gnulib ||
       cleanup_gnulib
 
     trap - 1 2 13 15
