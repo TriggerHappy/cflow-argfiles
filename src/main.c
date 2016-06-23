@@ -22,6 +22,8 @@
 #include <stdarg.h>
 #include <parser.h>
 #include <version-etc.h>
+#include <string.h>
+#include <stdio.h>
 
 const char *argp_program_bug_address = "<" PACKAGE_BUGREPORT ">";
 static char doc[] = N_("generate a program flowgraph")
@@ -506,6 +508,39 @@ add_preproc_option(int key, const char *arg)
      preprocess_option = 1;
 }
 
+static char strbuf[20*1024*1024];
+
+void
+add_args_from_file(const char* filename) {
+	const static char* delims = "\r\n\t ";
+
+	FILE* f = fopen(filename, "rb");
+	if (f == NULL) {
+		perror("Failed to open file");
+		return;
+	}
+	unsigned int bytes_to_read = sizeof(strbuf);
+	unsigned int bytes_read = fread(strbuf, 1, bytes_to_read, f);
+
+	while (bytes_read <= bytes_to_read && !feof(f)) {
+		unsigned int delta_read = fread(&strbuf[bytes_read], 1, bytes_to_read - bytes_read, f);
+
+		if (delta_read == 0 && ferror(f)) {
+			fprintf("Error occurred when reading from position %d in %s\n", bytes_read, filename);
+			return;
+		}
+
+		bytes_read += delta_read;
+	}
+	strbuf[bytes_read] = 0;
+	char* token = strtok(strbuf, delims);
+	while (token != NULL) {
+		add_name(token);
+		token = strtok(NULL, delims);
+	}
+	
+}
+
 static error_t
 parse_opt (int key, char *arg, struct argp_state *state)
 {
@@ -656,7 +691,11 @@ parse_opt (int key, char *arg, struct argp_state *state)
 	  preprocess_option = 0;
 	  break;
      case ARGP_KEY_ARG:
-	  add_name(arg);
+	  if (arg[0] == '@') {
+	    add_args_from_file(&arg[1]);
+	  } else {
+	    add_name(arg);
+	  }
 	  break;
      case 'I':
      case 'D':
